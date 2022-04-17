@@ -28,6 +28,14 @@ __global__ void cuda_row_subtract(double* M, int i, int j, double r, int M_cols)
     }
 }
 
+__global__ void cuda_gaussian_elimination(double* M, int i, int M_rows, int M_cols) {
+    int j = threadIdx.x + blockIdx.x * blockDim.x;
+    if (j > i && j < M_rows) {
+        double r = M[j * M_cols + i] / M[i * M_cols + i];
+        cuda_row_subtract<<<(M_cols + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(M, i, j, r, M_cols);
+    }
+}
+
 double determinant(char file[]) {
     // open and read input matrix
     FILE* f = fopen(file, "r");
@@ -71,11 +79,13 @@ double determinant(char file[]) {
 
         // apply elementary row operations to turn all elements below current pivot element to 0
         if (m[i * cols + i] != 0) {
-            for (int j = i + 1; j < rows; j++) {
-                double r = m[j * cols + i] / m[i * cols + i];
-                cuda_row_subtract<<<(cols + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, j, r, cols);
-                cudaMemcpy(m + j * cols, d_m + j * cols, cols * sizeof(double), cudaMemcpyDeviceToHost);
-            }
+            cuda_gaussian_elimination<<<(rows - i - 1 + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, rows, cols);
+            cudaMemcpy(m, d_m, rows * cols * sizeof(double), cudaMemcpyDeviceToHost);
+            // for (int j = i + 1; j < rows; j++) {
+            //     double r = m[j * cols + i] / m[i * cols + i];
+            //     cuda_row_subtract<<<(cols + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, j, r, cols);
+            //     cudaMemcpy(m + j * cols, d_m + j * cols, cols * sizeof(double), cudaMemcpyDeviceToHost);
+            // }
         }
 
         // multiply elements on main diagonal to obtain determinant

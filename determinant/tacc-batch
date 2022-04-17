@@ -1,0 +1,17 @@
+#!/bin/bash
+#SBATCH -J matrix_det           # job name
+#SBATCH -o matrix_det%j       # output and error file name (%j expands to jobID)
+#SBATCH -N 1              # total number of nodes
+#SBATCH -n 4              # total number of cores
+#SBATCH -p gtx     # queue (partition) -- normal, development, etc.
+#SBATCH -t 24:00:00        # run time (hh:mm:ss) - 20 seconds
+#SBATCH -A ECE382V
+#SBATCH --mail-user=koryyang@utexas.edu # replace by your email
+#SBATCH --mail-type=begin  # email me when the job starts
+#SBATCH --mail-type=end    # email me when the job finishes
+./determinant.out file1.txt
+./determinant.out mat_a.txt
+./determinant.out mat_b.txt
+./determinant.out mat_c.txt
+./determinant.out mat_d.txt
+./determinant.out mat_orthogonal.txt

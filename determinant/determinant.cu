@@ -2,21 +2,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_LINE_LEN 4096
+#define MAX_LINE_LEN 2147483647
 #define DELIM " \t\n"
-#define THREADS_PER_BLOCK 128
+#define THREADS_PER_BLOCK 1024
 
 double* readMatrix(FILE* fp, int* nrows, int* ncols);
 void printMatrix(double* m, int rows, int cols);
-void writeResults(double* m, int rows, int cols, double det);
+void writeResults(double* m, int rows, int cols, double det, float time);
 
-__global__ void cuda_swap_rows(double* M, int i, int j, int M_cols) {
+__global__ void cuda_swap_rows(double* M, double* det, int i, int j, int M_cols) {
     int col = threadIdx.x + blockIdx.x * blockDim.x;
     // swap element col in rows i and j
     if (col < M_cols) {
         double temp = M[i * M_cols + col];
         M[i * M_cols + col] = M[j * M_cols + col];
         M[j * M_cols + col] = temp;
+    }
+
+    if (col == 0) {
+        *det *= -1;
     }
 }
 
@@ -25,6 +29,18 @@ __global__ void cuda_row_subtract(double* M, int i, int j, double r, int M_cols)
     // for all k, m[j * cols + k] -= r * m[i * cols + k];
     if (col < M_cols) {
         M[j * M_cols + col] -= r * M[i * M_cols + col];
+    }
+}
+
+__global__ void cuda_gaussian_elimination(double* M, double* det, int i, int M_rows, int M_cols) {
+    int j = threadIdx.x + blockIdx.x * blockDim.x + i + 1;
+    if (j > i && j < M_rows && M[i * M_cols + i] != 0) {
+        double r = M[j * M_cols + i] / M[i * M_cols + i];
+        cuda_row_subtract<<<(M_cols + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(M, i, j, r, M_cols);
+    }
+
+    if (j == i + 1) {
+        *det *= M[i * M_cols + i];
     }
 }
 
@@ -49,50 +65,55 @@ double determinant(char file[]) {
     }
 
     // initialization
+    double det = 1;
     double* d_m;
+    double* d_det;
+    cudaMalloc(&d_det, sizeof(double));
     cudaMalloc(&d_m, rows * cols * sizeof(double));
     cudaMemcpy(d_m, m, rows * cols * sizeof(double), cudaMemcpyHostToDevice);
-    double det = 1;
+    cudaMemcpy(d_det, &det, sizeof(double), cudaMemcpyHostToDevice);
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    // start timer
+    cudaEventRecord(start);
 
     // gaussian elimination
-    for (int i = 0; i < rows - 1; i++) {
+    for (int i = 0; i < rows; i++) {
         // modified partial pivoting: if current pivot element is zero, swap with row such that pivot element is non zero
         if (m[i * cols + i] == 0) {
             for (int j = i + 1; j < rows; j++) {
                 if (m[j * cols + i] != 0) {
-                    cuda_swap_rows<<<(cols + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, j, cols);
-                    cudaMemcpy(m + i * cols, d_m + i * cols, cols * sizeof(double), cudaMemcpyDeviceToHost);
-                    cudaMemcpy(m + j * cols, d_m + j * cols, cols * sizeof(double), cudaMemcpyDeviceToHost);
-                    det *= -1;
+                    cuda_swap_rows<<<(cols + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, d_det, i, j, cols);
                     break;
                 }
             }
         }
 
         // apply elementary row operations to turn all elements below current pivot element to 0
-        if (m[i * cols + i] != 0) {
-            for (int j = i + 1; j < rows; j++) {
-                double r = m[j * cols + i] / m[i * cols + i];
-                cuda_row_subtract<<<(cols + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, j, r, cols);
-                cudaMemcpy(m + j * cols, d_m + j * cols, cols * sizeof(double), cudaMemcpyDeviceToHost);
-            }
-        }
-
-        // multiply elements on main diagonal to obtain determinant
-        det *= m[i * cols + i];
+        cuda_gaussian_elimination<<<(rows - i + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, d_det, i, rows, cols);
     }
 
-    // multiply the bottom right element on the main diagonal (not covered in the above for loop)
-    det *= m[(rows - 1) * cols + (rows - 1)];
+    // stop timer
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+
+    cudaMemcpy(m, d_m, rows * cols * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&det, d_det, sizeof(double), cudaMemcpyDeviceToHost);
 
     // print row echelon form of matrix
     // printMatrix(m, rows, cols);
-    writeResults(m, rows, cols, det);
+    writeResults(m, rows, cols, det, milliseconds);
 
     // close files and free memory
     fclose(f);
     free(m);
     cudaFree(d_m);
+    cudaFree(d_det);
 
     return det;
 }
@@ -141,19 +162,20 @@ void printMatrix(double* m, int rows, int cols) {
     }
 }
 
-void writeResults(double* m, int rows, int cols, double det) {
-    FILE* fout = fopen("out.txt", "a");
+void writeResults(double* m, int rows, int cols, double det, float time) {
+    FILE* fout = fopen("det_out.txt", "a");
     if (!fout) {
-      printf("Failed to create output file out.txt\n");
+      printf("Failed to create output file det_out.txt\n");
     }
     fprintf(fout, "%d %d \n", rows, cols);
-    for (int r = 0; r < rows; r++) {
-      for (int c = 0; c < cols; c++) {
-        fprintf(fout, "%f ", m[r * cols + c]);
-      }
-      fprintf(fout, "\n");
-    }
+    // for (int r = 0; r < rows; r++) {
+    //   for (int c = 0; c < cols; c++) {
+    //     fprintf(fout, "%f ", m[r * cols + c]);
+    //   }
+    //   fprintf(fout, "\n");
+    // }
     fprintf(fout, "determinant: %f\n", det);
+    fprintf(fout, "execution time: %f milliseconds\n", time);
     fclose(fout);
 }
 

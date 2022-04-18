@@ -1,0 +1,12 @@
+100 100 
+determinant: 1.000000
+execution time: 2.112512 milliseconds
+500 500 
+determinant: 1.000000
+execution time: 229.588806 milliseconds
+1000 1000 
+determinant: 1.000000
+execution time: 1844.839111 milliseconds
+2000 2000 
+determinant: -1.000000
+execution time: 14883.246094 milliseconds

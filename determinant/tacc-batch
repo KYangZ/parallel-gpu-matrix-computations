@@ -9,9 +9,14 @@
 #SBATCH --mail-user=koryyang@utexas.edu # replace by your email
 #SBATCH --mail-type=begin  # email me when the job starts
 #SBATCH --mail-type=end    # email me when the job finishes
-./determinant.out file1.txt
-./determinant.out mat_a.txt
-./determinant.out mat_b.txt
-./determinant.out mat_c.txt
-./determinant.out mat_d.txt
-./determinant.out mat_orthogonal.txt
+# run parallel determinant calculation
+./det.out tests/mat_orthogonal_100.txt
+./det.out tests/mat_orthogonal_500.txt
+./det.out tests/mat_orthogonal_1000.txt
+./det.out tests/mat_orthogonal_2000.txt
+
+# run with sequential algorithm for comparison
+./det_seq.out tests/mat_orthogonal_100.txt
+./det_seq.out tests/mat_orthogonal_500.txt
+./det_seq.out tests/mat_orthogonal_1000.txt
+./det_seq.out tests/mat_orthogonal_2000.txt

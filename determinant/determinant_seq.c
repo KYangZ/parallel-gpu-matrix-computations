@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_LINE_LEN 4096
+#define MAX_LINE_LEN 2147483647
 #define DELIM " \t\n"
 
 double* readMatrix(FILE* fp, int* nrows, int* ncols);

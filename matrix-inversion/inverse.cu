@@ -85,8 +85,9 @@ void matrix_read(char filename[], double *L, int dimension) {
 		return;
 
 	for (row = 0; row < dimension; row++) {
-		for (col = 0; col < dimension; col++)
-		if (fscanf(fp, "%f,", &L[row * dimension + col]) == EOF) break;//read data
+		for (col = 0; col < dimension; col++) {	
+			if (fscanf(fp, "%f,", &L[row * dimension + col]) == EOF) break;//read data
+		}
 
 		if (feof(fp)) break;//if the file is over
 	}
@@ -108,7 +109,7 @@ void savetofile(double *A, string s, int n, int h) {
 }
 /** end of local helper functions **/
 
-void invert(char filename[], int n) {
+void invert(char filename[], char outputFile[], int n) {
 	// creating input
 	double *iL = new double[n*n];
 	double *L = new double[n*n];
@@ -153,6 +154,7 @@ void invert(char filename[], int n) {
 		set_zero <<< numBlocks, threadsPerBlock >>>(d_A, dI, n, i);
 	}
 
+	// timer stop
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&time, start, stop);
@@ -164,7 +166,7 @@ void invert(char filename[], int n) {
 	cudaMemcpy(I, d_A, ddsize, cudaMemcpyDeviceToHost);
 	
 	
-	savetofile(iL, "outputs/inv.txt", n, n);
+	savetofile(iL, outputFile, n, n);
 
 	// double *c = new double[n*n];
 	// for (int i = 0; i<n; i++)  {}
@@ -187,12 +189,13 @@ void invert(char filename[], int n) {
 }
 
 int main(int argc, char *argv[]) {
-	char* file;
+	char* file, output;
 	int n;
 
 	file = argv[1];
-	n = stoi(argv[2]);
+	output = argv[2];
+	n = stoi(argv[3]);
 
-	invert(file, n);
+	invert(file, output, n);
     return 0;
 }

@@ -7,6 +7,10 @@
 #SBATCH -t 00:00:20         
 #SBATCH -A ECE382V
 
-./inverse.out inputs/randomMatrix_20.txt 20
-./inverse.out inputs/randomMatrix_50.txt 50
-./inverse.out inputs/randomMatrix_100.txt 100
+./inverse.out inputs/randomMatrix_20.txt outputs/inv_20.txt 20
+./inverse.out inputs/randomMatrix_50.txt outputs/inv_50.txt 50
+./inverse.out inputs/randomMatrix_100.txt outputs/inv_100.txt 100
+
+./inverse_seq.out inputs/randomMatrix_20.txt outputs/inv_seq_20.txt 20
+./inverse_seq.out inputs/randomMatrix_50.txt outputs/inv_seq_50.txt 50
+./inverse_seq.out inputs/randomMatrix_100.txt outputs/inv_seq_100.txt 100

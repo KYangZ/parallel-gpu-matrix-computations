@@ -37,6 +37,7 @@ __global__ void cuda_gaussian_elimination(double* M, int i, int M_rows, int M_co
     }
 }
 
+/*
 __global__ void forward_elimination(double* M, int i, int M_rows, int M_cols) {
     int j = threadIdx.x + blockIdx.x * blockDim.x;
     if(j>= (M_rows - (1+i))*(M_cols-i))return;
@@ -51,6 +52,7 @@ __global__ void forward_elimination(double* M, int i, int M_rows, int M_cols) {
     M[elim] -= aij*M[i*M_cols+coltoelim];
 
 }
+*/
 
 __global__ void reverse_elimination(double* M, int i, int M_rows, int M_cols) {
     int j = threadIdx.x;
@@ -84,7 +86,9 @@ __global__ void reverse_elimination(double* M, int i, int M_rows, int M_cols) {
 
 __global__ void fix_cols(double* M, int i, int M_rows, int M_cols) {
     int j = threadIdx.x;
-    M[i+M_cols*j] *= M[-1 + M_cols*(1+i)];
+    if(fabs(M[i+(M_cols*j)]) != 1.0){
+        M[i+(M_cols*j)] *= M[M_cols*(1+i) - 1];
+    }
 }
 
 __global__ void fix_zeroes(double* M, int i, int M_rows, int M_cols) {
@@ -136,11 +140,6 @@ double linearSolver(char file[]) {
         cuda_gaussian_elimination<<<(rows - i + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, rows, cols);
     }
 
-    /*/Gaussian forward
-    for(int col = 0; col<cols -1; col++){
-        fix_zeroes<<<(cols-col-1)/THREADS_PER_BLOCK + 1, THREADS_PER_BLOCK>>>(d_m, col, rows, cols);
-        forward_elimination<<<((rows-col)*(cols-col)-1)/THREADS_PER_BLOCK + 1, THREADS_PER_BLOCK>>>(d_m, col, rows, cols);
-    }*/
 
     cudaMemcpy(m, d_m, rows * cols * sizeof(double), cudaMemcpyDeviceToHost);
 
@@ -149,13 +148,25 @@ double linearSolver(char file[]) {
     //Gaussian Backward substitution
     for(int i = rows-1; i >= 0; i--){
         reverse_elimination<<<1, cols>>>(d_m, i, rows, cols);
-        fix_cols<<<1, rows>>>(d_m, i, rows, cols);
-        cudaThreadSynchronize();
-        printf("\n");
+        printf("reverse step \n");
         cudaMemcpy(m, d_m, rows * cols * sizeof(double), cudaMemcpyDeviceToHost);
         printMatrix(m, rows, cols);
+
+        fix_cols<<<1, rows>>>(d_m, i, rows, cols);
+        cudaThreadSynchronize();
+        printf(" fix step\n");
+        cudaMemcpy(m, d_m, rows * cols * sizeof(double), cudaMemcpyDeviceToHost);
+        printMatrix(m, rows, cols);
+        
     }
 
+    /*
+    reverse_elimination<<<1, cols>>>(d_m, 0, rows, cols);
+    printf("reverse step \n");
+    cudaMemcpy(m, d_m, rows * cols * sizeof(double), cudaMemcpyDeviceToHost);
+    printMatrix(m, rows, cols);
+    */
+    
     // stop timer
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);

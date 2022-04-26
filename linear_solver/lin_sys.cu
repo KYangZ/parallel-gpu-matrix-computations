@@ -41,8 +41,12 @@ __global__ void back_sub(double* M, int i, int j, double r, int M_rows, int M_co
     M[j*M_cols+M_cols-1] -= r*M[i*M_cols+M_cols-1];
 }
 
-__global__ void scale_rows(double* M, int i, int j, double r, int M_rows, int M_cols) {
-    M[i*M_cols+j] /= r;
+__global__ void scale_rows(double* M, int i, int M_rows, int M_cols) {
+    double r = M[i*M_cols+i];
+    int j = threadIdx.x + blockIdx.x * blockDim.x;
+    if(j>=i && j < M_cols){
+        M[i*M_cols+j] /= r;
+    }
 }
 
 __global__ void fix_zeroes(double* M, int i, int M_rows, int M_cols) {
@@ -71,9 +75,11 @@ double linearSolver(char file[]) {
     double* d_m;
     cudaMalloc(&d_m, rows * cols * sizeof(double));
     cudaMemcpy(d_m, m, rows * cols * sizeof(double), cudaMemcpyHostToDevice);
-    cudaEvent_t start, stop;
+    cudaEvent_t start, stop, pause, endpause;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
+    cudaEventCreate(&pause);
+    cudaEventCreate(&endpause);
 
     // start timer
     cudaEventRecord(start);
@@ -89,13 +95,13 @@ double linearSolver(char file[]) {
                 }
             }
         }
-        cudaThreadSynchronize();
 
         // apply elementary row operations to turn all elements below current pivot element to 0
         cuda_gaussian_elimination<<<(rows - i + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, rows, cols);
-        cudaThreadSynchronize();
     }
 
+    cudaEventRecord(pause);
+    cudaEventSynchronize(pause);
     cudaMemcpy(m, d_m, rows * cols * sizeof(double), cudaMemcpyDeviceToHost);
 
     //Scaling done non-parallel becuase it kept producing incorrect solutions
@@ -103,8 +109,9 @@ double linearSolver(char file[]) {
         double r = m[i*cols+i];
         for(int j = cols-1; j >= i; j--){
             m[i*cols+j] /= r;
-          //  scale_rows<<<(rows - i + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, j, r, rows, cols);
         }
+       // scale_rows<<<(rows - i + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, rows, cols);
+       
     }
 
 
@@ -112,7 +119,7 @@ double linearSolver(char file[]) {
    // printf("\n");
 
     cudaMemcpy(d_m, m, rows * cols * sizeof(double), cudaMemcpyHostToDevice);
-
+    cudaEventRecord(endpause);
     //Gaussian Backward substitution
     for(int i = rows-1; i > 0; i--){
         for(int j = i-1; j >= 0; j-- ){
@@ -126,8 +133,12 @@ double linearSolver(char file[]) {
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
 
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
+    float gaustime = 0;
+    float subtime = 0;
+    float time = 0;
+    cudaEventElapsedTime(&gaustime, start, pause);
+    cudaEventElapsedTime(&subtime, endpause, stop);
+    time = gaustime+subtime;
 
     cudaMemcpy(m, d_m, rows * cols * sizeof(double), cudaMemcpyDeviceToHost);
 
@@ -136,8 +147,8 @@ double linearSolver(char file[]) {
         solutions[i] = m[i*cols+cols-1];
     }
     // print row echelon form of matrix
-    printMatrix(solutions, rows, 1);
-    writeResults(solutions, rows, 1, milliseconds);
+    //printMatrix(solutions, rows, 1);
+    writeResults(solutions, rows, 1, time);
 
     // close files and free memory
     fclose(f);

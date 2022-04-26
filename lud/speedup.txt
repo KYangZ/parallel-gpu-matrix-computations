@@ -1,0 +1,23 @@
+c227-120.maverick2(408)$ nvcc lud_par.cu -o lud_par.o
+c227-120.maverick2(409)$ cuda-memcheck ./lud_par.o 5
+========= CUDA-MEMCHECK
+Sweeping over multiple sizes...
+Comparing N dim: 25 by 25 
+Parallel runtime for 25x25 dimensions: 2.596992
+Sequential runtime for 25x25 dimensions: 0.025376
+Comparing N dim: 100 by 100 
+Parallel runtime for 100x100 dimensions: 4.406272
+Sequential runtime for 100x100 dimensions: 1.325248
+Comparing N dim: 500 by 500 
+Parallel runtime for 500x500 dimensions: 109.030273
+Sequential runtime for 500x500 dimensions: 158.712799
+Comparing N dim: 1000 by 1000 
+Parallel runtime for 1000x1000 dimensions: 865.533997
+Sequential runtime for 1000x1000 dimensions: 1261.188110
+Comparing N dim: 2500 by 2500 
+Parallel runtime for 2500x2500 dimensions: 13603.130859
+Sequential runtime for 2500x2500 dimensions: 19729.044922
+Comparing N dim: 5000 by 5000 
+Parallel runtime for 5000x5000 dimensions: 109045.976562
+Sequential runtime for 5000x5000 dimensions: 158435.875000
+========= ERROR SUMMARY: 0 errors

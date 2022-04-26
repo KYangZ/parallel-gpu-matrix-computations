@@ -12,4 +12,11 @@ execution time: 1306.000000 milliseconds
  
  
  
+ rows: 4999 cols: 1 
+execution time: 171921.000000 milliseconds
+ 
+ 
+ 
+ 
+ 
  

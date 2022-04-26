@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <cmath>
 #include "io.h"
 void print_matrix_seq(float**, int N);
 void gen_matrix_seq(float**, int);
@@ -41,6 +42,24 @@ void flat_to_grid(float** mat, float* tocopy, int N){
         }
     }
 }
+bool compare_float(float x, float y, float epsilon = 1.0f){
+    if(std::fabs(x - y) < epsilon)
+        return true; //they are same
+    return false; //they are not same
+}
+void compare_grids(float** mat1, float** mat2, int N){
+    for(int i=0;i<N;i++){
+        for(int j=0;j<N;j++){
+            if(!compare_float(mat1[i][j], mat2[i][j])){
+                printf("Not Same\n");
+                printf("%f, %f \n", mat1[i][j], mat2[i][j]);
+                // return;
+            }
+        }
+    }
+    // printf("Passed!\n");
+}
+
 void lud_sequential(float** l, float** a, int N){
     //gaussian elimination based 
     for(int j = 0; j<N; j++){

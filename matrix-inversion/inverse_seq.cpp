@@ -51,7 +51,7 @@ void savetofile(string outFile, double *matrix[], int n) {
 void saveTime(char inFile[], int time) {
 	ofstream ofile;
 	ofile.open("times.txt", ios::out | ios::app);
-	ofile << inFile << ": " << time << " ms \n";
+	ofile << "seq" << inFile << ": " << time << " ms \n";
 	ofile.close();
 }
 

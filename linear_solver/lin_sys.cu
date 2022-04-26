@@ -18,7 +18,20 @@ __global__ void cuda_swap_rows(double* M, int i, int j, int M_cols) {
         M[i * M_cols + col] = M[j * M_cols + col];
         M[j * M_cols + col] = temp;
     }
+}
 
+__global__ void cuda_normalize_row(double* M, int i, double r, int M_cols) {
+    int col = threadIdx.x + blockIdx.x * blockDim.x;
+    if (col < M_cols) {
+        M[i * M_cols + col] /= r;
+    }
+}
+
+__global__ void cuda_normalize_pivots(double* M, int M_rows, int M_cols) {
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    if (i < M_rows && M[i * M_cols + i] != 0) {
+        cuda_normalize_row<<<(M_cols + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(M, i, M[i * M_cols + i], M_cols);
+    }
 }
 
 __global__ void cuda_row_subtract(double* M, int i, int j, double r, int M_cols) {
@@ -37,31 +50,15 @@ __global__ void cuda_gaussian_elimination(double* M, int i, int M_rows, int M_co
     }
 }
 
-__global__ void back_sub(double* M, int i, int j, double r, int M_rows, int M_cols) {
-    M[j*M_cols+M_cols-1] -= r*M[i*M_cols+M_cols-1];
-}
-
-__global__ void scale_rows(double* M, int i, int M_rows, int M_cols) {
-    double r = M[i*M_cols+i];
+__global__ void cuda_backwards_elimination(double* M, int i, int M_rows, int M_cols) {
     int j = threadIdx.x + blockIdx.x * blockDim.x;
-    if(j>=i && j < M_cols){
-        M[i*M_cols+j] /= r;
+    if (j < i && M[i * M_cols + i] != 0) {
+        double r = M[j * M_cols + i] / M[i * M_cols + i];
+        cuda_row_subtract<<<(M_cols + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(M, i, j, r, M_cols);
     }
 }
 
-__global__ void fix_zeroes(double* M, int i, int M_rows, int M_cols) {
-    if(fabs(M[i*M_cols+i]) <= 1e-4){
-        int j = i;
-        for(; j<M_rows; j++){
-            if(fabs(M[j*M_cols+i]) <= 1e-4)break;
-        }
-        int thread = threadIdx.x + blockIdx.x * blockDim.x;
-        if(thread+i>=M_cols)return;
-        M[i*M_cols+i+thread] += M[j*M_cols+i+thread];
-    }
-}
-
-double linearSolver(char file[]) {
+void linearSolver(char file[]) {
     // open and read input matrix
     FILE* f = fopen(file, "r");
     if (!f) {
@@ -75,11 +72,9 @@ double linearSolver(char file[]) {
     double* d_m;
     cudaMalloc(&d_m, rows * cols * sizeof(double));
     cudaMemcpy(d_m, m, rows * cols * sizeof(double), cudaMemcpyHostToDevice);
-    cudaEvent_t start, stop, pause, endpause;
+    cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
-    cudaEventCreate(&pause);
-    cudaEventCreate(&endpause);
 
     // start timer
     cudaEventRecord(start);
@@ -100,62 +95,37 @@ double linearSolver(char file[]) {
         cuda_gaussian_elimination<<<(rows - i + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, rows, cols);
     }
 
-    cudaEventRecord(pause);
-    cudaEventSynchronize(pause);
-    cudaMemcpy(m, d_m, rows * cols * sizeof(double), cudaMemcpyDeviceToHost);
+    cuda_normalize_pivots<<<(rows + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, rows, cols);
 
-    //Scaling done non-parallel becuase it kept producing incorrect solutions
-    for(int i = rows-1; i >=0; i--){
-        double r = m[i*cols+i];
-        for(int j = cols-1; j >= i; j--){
-            m[i*cols+j] /= r;
-        }
-       // scale_rows<<<(rows - i + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, rows, cols);
-       
-    }
-
-
-   // printMatrix(m, rows, cols);
-   // printf("\n");
-
-    cudaMemcpy(d_m, m, rows * cols * sizeof(double), cudaMemcpyHostToDevice);
-    cudaEventRecord(endpause);
-    //Gaussian Backward substitution
-    for(int i = rows-1; i > 0; i--){
-        for(int j = i-1; j >= 0; j-- ){
-            double r = m[j * cols + i]; 
-          //m[j*cols+cols-1] -= r*m[i*cols+cols-1];
-            back_sub<<<(rows - i + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, j, r, rows, cols);
-        }
+    // Gaussian Backward substitution
+    for (int i = rows - 1; i > 0; i--) {
+        cuda_backwards_elimination<<<(i + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(d_m, i, rows, cols);
     }
 
     // stop timer
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
 
-    float gaustime = 0;
-    float subtime = 0;
-    float time = 0;
-    cudaEventElapsedTime(&gaustime, start, pause);
-    cudaEventElapsedTime(&subtime, endpause, stop);
-    time = gaustime+subtime;
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
 
     cudaMemcpy(m, d_m, rows * cols * sizeof(double), cudaMemcpyDeviceToHost);
+    // printMatrix(m, rows, cols);
+    // printf("\n");
 
     double *solutions = (double*)malloc((rows)*sizeof(double));
     for(int i = 0; i < rows; i++){
         solutions[i] = m[i*cols+cols-1];
     }
     // print row echelon form of matrix
-    //printMatrix(solutions, rows, 1);
-    writeResults(solutions, rows, 1, time);
+    // printMatrix(solutions, rows, 1);
+    writeResults(solutions, rows, 1, milliseconds);
 
     // close files and free memory
     fclose(f);
     free(m);
+    free(solutions);
     cudaFree(d_m);
-
-    return 0;
 }
 
 double* readMatrix(FILE* fp, int* nrows, int* ncols) {
@@ -201,7 +171,7 @@ void printMatrix(double* m, int rows, int cols) {
 }
 
 void writeResults(double* m, int rows, int cols, float time) {
-    FILE* fout = fopen("solved_sys.txt", "a");
+    FILE* fout = fopen("solved_sys.txt", "w");
     if (!fout) {
       printf("Failed to create output file solved_sys.txt\n");
     }
@@ -215,7 +185,6 @@ void writeResults(double* m, int rows, int cols, float time) {
       fprintf(fout, "\n");
     }
     
-    fprintf(fout, "\n \n \n \n \n ");
     fclose(fout);
 }
 
@@ -224,6 +193,5 @@ int main(int argc, char* argv[]) {
     file = argv[1];
 
     linearSolver(file);
-
     return 0;
 }

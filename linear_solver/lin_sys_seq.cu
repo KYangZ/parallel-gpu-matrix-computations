@@ -145,14 +145,12 @@ void printMatrix(double* m, int rows, int cols) {
 }
 
 void writeResults(double* m, int rows, int cols, float time) {
-    FILE* fout = fopen("solved_sys_seq.txt", "a");
+    FILE* fout = fopen("solved_sys_seq.txt", "w");
     if (!fout) {
       printf("Failed to create output file solved_sys.txt\n");
     }
     fprintf(fout, "rows: %d cols: %d \n", rows, cols);
     fprintf(fout, "execution time: %f milliseconds\n ", time);
-    
-    fprintf(fout, "\n \n \n \n \n ");
     fclose(fout);
 }
 

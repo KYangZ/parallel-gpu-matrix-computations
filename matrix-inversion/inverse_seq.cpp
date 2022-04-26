@@ -3,23 +3,19 @@
 #include <fstream>
 #include <vector>
 #include <string>
-#include <chrono>
+#include <time.h>
 
 using namespace std;
-using namespace std::chrono;
 
 void matrix_read(char inFile[], double *A[], double *I[], int n) {
-	FILE *fp;
-	int row, col;
-
-	fp = fopen(inFile, "r");
+	FILE *fp = fopen(inFile, "r");
 	if (fp == NULL)
 		return;
 
-	for (row = 0; row < n; row++) {
+	for (int row = 0; row < n; row++) {
 		A[row] = new double[n];
 
-		for (col = 0; col < n; col++) {	
+		for (int col = 0; col < n; col++) {	
 			if (row == col) I[row][col] = 1;
 			else I[row][col] = 0;
 
@@ -32,31 +28,8 @@ void matrix_read(char inFile[], double *A[], double *I[], int n) {
 	fclose(fp);
 }
 
-
-void savetofile(string outFile, double *matrix[], int n) {
-	ofstream ofile;
-	int row, col;
-
-	ofile.open(outFile, ios::out | ios::app);
-
-	for (row = 0; row < n; row++) {
-		for (col = n; col < 2*n; col++) {	
-			ofile << matrix[row][col] << ",";
-		}
-		ofile << "\n";
-	}
-	ofile.close();
-}
-
-void saveTime(char inFile[], int time) {
-	ofstream ofile;
-	ofile.open("times.txt", ios::out | ios::app);
-	ofile << "seq" << inFile << ": " << time << " ms \n";
-	ofile.close();
-}
-
-
 void inverse(double *A, double *I, int N) {
+
      for (int i = 0; i < N; i++) {
          double factor = A[i*N + i]; 
 
@@ -64,7 +37,6 @@ void inverse(double *A, double *I, int N) {
             A[i*N+j] = A[i*N+j]/factor;
             I[i*N+j] = I[i*N+j]/factor;
         }
-
 
         for (int k = 0; i < N; i++) {
             if (k != i) {
@@ -80,32 +52,23 @@ void inverse(double *A, double *I, int N) {
 }
 
 int main(int argc, char *argv[]) {
-	char* inFile;
-	string outFile;
-	int n;
+	int n = stoi(argv[3]);
 
-	inFile = (char*) malloc (20);
-	outFile = (char*) malloc (21);
+	double * A = (double*) malloc (n);
+	double * I = (double*) malloc (n);
+	matrix_read(argv[1], &A, &I, n);
 
-	inFile = argv[1];
-	outFile = argv[2];
-	n = stoi(argv[3]);
+	clock_t start = clock();
 
-	double * A ;
-	double * I ;
-
-	A = (double*) malloc (n*n);
-	I = (double*) malloc (n*n);
-	
-	matrix_read(inFile, &A, &I, n);
-
-	auto start = high_resolution_clock::now();
 	inverse(A,I,n);
-	auto stop = high_resolution_clock::now();
-	auto duration = duration_cast<microseconds>(stop - start);
 
-	saveTime(inFile, duration.count());
-	savetofile(outFile, &I, n);
+	clock_t finish = clock();
+	double time = (double)(finish - start);
+
+	cout << "time: " << time << "\n";
+
+	free(A);
+	free(I);
 
     return 0;
 }

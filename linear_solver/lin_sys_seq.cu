@@ -21,7 +21,12 @@ double linearSolver(char file[]) {
     int rows, cols;
     double* m = readMatrix(f, &rows, &cols);
 
-    clock_t start = clock();
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    // start timer
+    cudaEventRecord(start);
 
     
     // prints out matrices (for testing)
@@ -73,18 +78,20 @@ double linearSolver(char file[]) {
         }
     }
 
+    // stop timer
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
 
-    
-
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
 
     double *solutions = (double*)malloc((rows)*sizeof(double));
     for(int i = 0; i < rows; i++){
         solutions[i] = m[i*cols+cols-1];
     }
-    clock_t stop = clock();
-    float time = (float)(stop-start);
+
     // printMatrix(m, rows, cols);
-    writeResults(solutions, rows, 1, time);
+    writeResults(solutions, rows, 1, milliseconds);
 
     // close files
     fclose(f);

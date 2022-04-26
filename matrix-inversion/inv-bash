@@ -7,10 +7,10 @@
 #SBATCH -t 00:00:20         
 #SBATCH -A ECE382V
 
-./inv_seq.out inputs/mat_100_0.txt outputs/inv_100_0.txt 100
+./seq_cu.out inputs/mat_100_0.txt outputs/inv_100_0.txt 100
 
-./inv_seq.out inputs/mat_500_0.txt outputs/inv_500_0.txt 500
+./seq_cu.out inputs/mat_500_0.txt outputs/inv_500_0.txt 500
 
-./inv_seq.out inputs/mat_1000_0.txt outputs/inv_1000_0.txt 1000
+./seq_cu.out inputs/mat_1000_0.txt outputs/inv_1000_0.txt 1000
 
-#./inv_seq.out inputs/mat_2000_0.txt outputs/inv_2000_0.txt 2000
+./seq_cu.out inputs/mat_2000_0.txt outputs/inv_2000_0.txt 2000

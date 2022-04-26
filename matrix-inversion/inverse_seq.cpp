@@ -19,7 +19,7 @@ void matrix_read(char inFile[], double *A[], double *I[], int n) {
 			if (row == col) I[row][col] = 1;
 			else I[row][col] = 0;
 
-			if (fscanf(fp, "%f,", &A[row * n + col]) == EOF) break;
+			if (fscanf(fp, "%lf,", A[row * n + col]) == EOF) break;
 		}
 
 		if (feof(fp)) break;
@@ -52,6 +52,10 @@ void inverse(double *A, double *I, int N) {
 }
 
 int main(int argc, char *argv[]) {
+	if(argc == 0) {
+		return 0;
+	}
+
 	int n = stoi(argv[3]);
 
 	double * A = (double*) malloc (n);

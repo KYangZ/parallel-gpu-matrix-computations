@@ -18,184 +18,191 @@ using namespace std;
 #define blocksize 8
 
 // normalize elements not in diagonal
-__global__ void nodiag_normalize(double *A, double *I, int n, int i) {
-	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	int y = blockIdx.y * blockDim.y + threadIdx.y;
+__global__ void nodiag_normalize(float *A, float *I, int n, int i) {
+        int x = blockIdx.x * blockDim.x + threadIdx.x;
+        int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if (x < n && y < n) {
-		if (x == i && x!=y) {
-			I[x*n + y] /= A[i*n + i];
-			A[x*n + y] /= A[i*n + i];
-		}
-	}
+        if (x < n && y < n) {
+                if (x == i && x!=y) {
+                        I[x*n + y] /= A[i*n + i];
+                        A[x*n + y] /= A[i*n + i];
+                }
+        }
 }
 
 // normalize elements in diagonal
-__global__ void diag_normalize(double *A, double *I, int n, int i) {
-	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	int y = blockIdx.y * blockDim.y + threadIdx.y;
+__global__ void diag_normalize(float *A, float *I, int n, int i) {
+        int x = blockIdx.x * blockDim.x + threadIdx.x;
+        int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if (x < n && y < n) {
-		if (x == y && x == i) {
-			I[x*n + y] /= A[i*n + i];
-			A[x*n + y] /= A[i*n + i];
-		}
-	}
+        if (x < n && y < n) {
+                if (x == y && x == i) {
+                        I[x*n + y] /= A[i*n + i];
+                        A[x*n + y] /= A[i*n + i];
+                }
+        }
 
 }
 
-// realization of parallel matrix inverse 
-__global__ void gaussjordan(double *A, double *I, int n, int i) {
-	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	int y = blockIdx.y * blockDim.y + threadIdx.y;
+// realization of parallel matrix inverse
+__global__ void gaussjordan(float *A, float *I, int n, int i) {
+        int x = blockIdx.x * blockDim.x + threadIdx.x;
+        int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if (x < n && y < n) {
-		if (x != i) {
-			I[x*n + y] -= I[i*n + y] * A[x*n + i];
-			if (y != i) {
-				A[x*n + y] -= A[i*n + y] * A[x*n + i];
-			}	 
-		}
-	}
+        if (x < n && y < n) {
+                if (x != i) {
+                        I[x*n + y] -= I[i*n + y] * A[x*n + i];
+                        if (y != i) {
+                                A[x*n + y] -= A[i*n + y] * A[x*n + i];
+                        }
+                }
+        }
 
 }
 
 // set first line in every loop to 0
-__global__ void set_zero(double *A, double *I, int n, int i) {
-	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	int y = blockIdx.y * blockDim.y + threadIdx.y;
+__global__ void set_zero(float *A, float *I, int n, int i) {
+        int x = blockIdx.x * blockDim.x + threadIdx.x;
+        int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if (x < n && y < n) {
-		if (x != i) {
-			if (y == i) {
-				A[x*n + y] = 0;
-			}
-		}
-	}
+        if (x < n && y < n) {
+                if (x != i) {
+                        if (y == i) {
+                                A[x*n + y] = 0;
+                        }
+                }
+        }
 }
 
 
 /** start of local helper functions **/
-void matrix_read(char filename[], double *L, int dimension) {
-	FILE *fp;
-	int row, col;
+void matrix_read(char filename[], float *L, int dimension) {
+        FILE *fp;
+        int row, col;
 
-	fp = fopen(filename, "r");//open output file
-	if (fp == NULL)//open failed
-		return;
+        fp = fopen(filename, "r");//open output file
+        if (fp == NULL)//open failed
+                return;
 
-	for (row = 0; row < dimension; row++) {
-		for (col = 0; col < dimension; col++) {	
-			if (fscanf(fp, "%f,", &L[row * dimension + col]) == EOF) break;//read data
-		}
+        for (row = 0; row < dimension; row++) {
+                for (col = 0; col < dimension; col++) {
+                        if (fscanf(fp, "%f,", &L[row * dimension + col]) == EOF) break;//read data
+                }
 
-		if (feof(fp)) break;//if the file is over
-	}
+                if (feof(fp)) break;//if the file is over
+        }
 
-	fclose(fp);//close file
+        fclose(fp);//close file
 }
 
-void savetofile(double *A, string s, int n, int h) {
-	std::ofstream plik;
-	plik.open(s);
+void printMatrix(float *A, int n) {
+        std::ofstream plik;
+        char *outfile;
+        asprintf(&outfile, "./outputs/matrix_%d.txt", n);
+        plik.open(outfile);
 
-	for (int j = 0; j<h; j++) {
-		for (int i = 0; i<h; i++) {
-			plik << A[j*n + i] << "\t";
-		}
-		plik << endl;
-	}
-	plik.close();
+        for (int j = 0; j<n; j++) {
+                for (int i = 0; i<n; i++) {
+                        plik << A[j*n + i] << "\t";
+                }
+                plik << endl;
+        }
+        plik.close();
 }
+
+void savetofile(float *A, string s, int n, int h) {
+        std::ofstream plik;
+        plik.open(s);
+
+        for (int j = 0; j<h; j++) {
+                for (int i = 0; i<h; i++) {
+                        plik << A[j*n + i] << "\t";
+                }
+                plik << endl;
+        }
+        plik.close();
+}
+
 /** end of local helper functions **/
 
 void invert(char filename[], char outputFile[], int n) {
-	// creating input
-	double *iL = new double[n*n];
-	double *L = new double[n*n];
-	matrix_read(filename, L, n);
+        // creating input
+        float *iL = new float[n*n];
+        float *L = new float[n*n];
+        matrix_read(filename, L, n);
+        printMatrix(L, n);
 
-	// initialization 
-	double *d_A, *I, *dI;
-	float time;
-	int ddsize = n*n*sizeof(double);
+        // initialization
+        float *d_A, *I, *dI;
+        float time;
+        int ddsize = n*n*sizeof(float);
 
-	// memory allocation    
-	dim3 threadsPerBlock(blocksize, blocksize);
-	dim3 numBlocks((n + blocksize - 1) / blocksize, (n + blocksize - 1) / blocksize);
+        // memory allocation
+        dim3 threadsPerBlock(blocksize, blocksize);
+        dim3 numBlocks((n + blocksize - 1) / blocksize, (n + blocksize - 1) / blocksize);
 
-	cudaMalloc((void**)&d_A, ddsize);
-	cudaMalloc((void**)&dI, ddsize);
-	
-	// identity matrix
-	I = new double[n*n];
-	for (int i = 0; i<n; i++) {
-		for (int j = 0; j<n; j++) {
-			if (i == j) I[i*n + i] = 1.0;
-			else I[i*n + j] = 0.0;
-		}
-	}
+        cudaMalloc((void**)&d_A, ddsize);
+        cudaMalloc((void**)&dI, ddsize);
 
-	//copy data from CPU to GPU
-	cudaMemcpy(d_A, L, ddsize, cudaMemcpyHostToDevice);
-	cudaMemcpy(dI, I, ddsize, cudaMemcpyHostToDevice);
+        // identity matrix
+        I = new float[n*n];
+        for (int i = 0; i<n; i++) {
+                for (int j = 0; j<n; j++) {
+                        if (i == j) I[i*n + i] = 1.0;
+                        else I[i*n + j] = 0.0;
+                }
+        }
 
-	//timer start
-	cudaEvent_t start, stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-	cudaEventRecord(start, 0);
+        //copy data from CPU to GPU
+        cudaMemcpy(d_A, L, ddsize, cudaMemcpyHostToDevice);
+        cudaMemcpy(dI, I, ddsize, cudaMemcpyHostToDevice);
 
-	// L^(-1)    
-	for (int i = 0; i<n; i++) {
-		nodiag_normalize <<< numBlocks, threadsPerBlock >>>(d_A, dI, n, i);
-		diag_normalize <<< numBlocks, threadsPerBlock >>>(d_A, dI, n, i);
-		gaussjordan <<< numBlocks, threadsPerBlock >>>(d_A, dI, n, i);
-		set_zero <<< numBlocks, threadsPerBlock >>>(d_A, dI, n, i);
-	}
+        //timer start
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start, 0);
 
-	// timer stop
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&time, start, stop);
-	cudaEventDestroy(start);
-	cudaEventDestroy(stop);
+        // L^(-1)
+        for (int i = 0; i<n; i++) {
+			nodiag_normalize <<< numBlocks, threadsPerBlock >>>(d_A, dI, n, i);
+			diag_normalize <<< numBlocks, threadsPerBlock >>>(d_A, dI, n, i);
+			gaussjordan <<< numBlocks, threadsPerBlock >>>(d_A, dI, n, i);
+			set_zero <<< numBlocks, threadsPerBlock >>>(d_A, dI, n, i);
+        }
 
-	//copy data from GPU to CPU
-	cudaMemcpy(iL, dI, ddsize, cudaMemcpyDeviceToHost);
-	cudaMemcpy(I, d_A, ddsize, cudaMemcpyDeviceToHost);
-	
-	
-	savetofile(iL, outputFile, n, n);
+        // timer stop
+        cudaEventRecord(stop, 0);
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&time, start, stop);
+        cudaEventDestroy(start);
+        cudaEventDestroy(stop);
 
-	// double *c = new double[n*n];
-	// for (int i = 0; i<n; i++)  {}
-	// 	for (int j = 0; j<n; j++) {
-	// 		c[i*n+j] = 0;  //put the initial value to zero
+        //copy data from GPU to CPU
+        cudaMemcpy(iL, dI, ddsize, cudaMemcpyDeviceToHost);
+        cudaMemcpy(I, d_A, ddsize, cudaMemcpyDeviceToHost);
 
-	// 		for (int x = 0; x<n; x++) {
-	// 			c[i*n + j] = c[i*n + j] + L[i*n+x] * iL[x*n + j];  //matrix multiplication
-	// 		}
-	// 	}
-	// }
-	// savetofile(c, "outputs/c.txt", n, n);
+		// outputs
+		cout << filename << ": " << time << "\n";
+        savetofile(iL, outputFile, n, n);
 
-	// free variables 
-	cudaFree(d_A);
-	cudaFree(dI);
-	delete[]I;
-	delete[]L;
-	delete[]iL;
+        // free variables
+        cudaFree(d_A);
+        cudaFree(dI);
+        delete[]I;
+        delete[]L;
+        delete[]iL;
 }
 
 int main(int argc, char *argv[]) {
-	char* file, output;
-	int n;
+        char* file;
+        char* output;
+        int n;
 
-	file = argv[1];
-	output = argv[2];
-	n = stoi(argv[3]);
+        file = argv[1];
+        output = argv[2];
+        n = stoi(argv[3]);
 
-	invert(file, output, n);
+        invert(file, output, n);
     return 0;
 }

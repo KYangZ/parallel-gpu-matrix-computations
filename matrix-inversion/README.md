@@ -1,3 +1,10 @@
+TODO:
+1. copy over .cu file from linux machine 
+2. add timer outputs 
+3. fix .cpp file 
+
+
+
 # Gauss-Jordan Matrix Inversion
 Rachel Tan 
 

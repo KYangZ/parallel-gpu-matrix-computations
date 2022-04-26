@@ -3,16 +3,17 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <chrono>
 
 using namespace std;
-
+using namespace std::chrono;
 
 void matrix_read(char inFile[], double *A[], double *I[], int n) {
 	FILE *fp;
 	int row, col;
 
-	fp = fopen(inFile, "r");//open output file
-	if (fp == NULL)//open failed
+	fp = fopen(inFile, "r");
+	if (fp == NULL)
 		return;
 
 	for (row = 0; row < n; row++) {
@@ -22,13 +23,13 @@ void matrix_read(char inFile[], double *A[], double *I[], int n) {
 			if (row == col) I[row][col] = 1;
 			else I[row][col] = 0;
 
-			if (fscanf(fp, "%f,", &A[row * n + col]) == EOF) break;//read data
+			if (fscanf(fp, "%f,", &A[row * n + col]) == EOF) break;
 		}
 
-		if (feof(fp)) break;//if the file is over
+		if (feof(fp)) break;
 	}
 
-	fclose(fp);//close file
+	fclose(fp);
 }
 
 
@@ -36,7 +37,7 @@ void savetofile(string outFile, double *matrix[], int n) {
 	ofstream ofile;
 	int row, col;
 
-	ofile.open(outFile, ios::out | ios::app);//open output file
+	ofile.open(outFile, ios::out | ios::app);
 
 	for (row = 0; row < n; row++) {
 		for (col = n; col < 2*n; col++) {	
@@ -44,45 +45,31 @@ void savetofile(string outFile, double *matrix[], int n) {
 		}
 		ofile << "\n";
 	}
-	ofile.close();//close file
+	ofile.close();
+}
+
+void saveTime(char inFile[], int time) {
+	ofstream ofile;
+	ofile.open("times.txt", ios::out | ios::app);
+	ofile << inFile << ": " << time << " ms \n";
+	ofile.close();
 }
 
 
-/**
- * inverse(A, I, N):
- *
- *       input:  
- *          A = an NxN matrix that you need to find the inverse
- *              When the inverse( ) function completes, A will
- *              contain the identity matrix
- *
- *          I = initially contains the identity matrix
- *              When the inverse( ) function completes, I will
- *              contain the inverse of A
- *
- *          N = #rows (and # columns) in A and I
-**/
 void inverse(double *A, double *I, int N) {
      for (int i = 0; i < N; i++) {
-         double factor = A[i*N + i]; // Use A[i][i] as multiply factor
+         double factor = A[i*N + i]; 
 
-         for (int j = 0; j < N; j++) { // Normalize row i with factor
+         for (int j = 0; j < N; j++) { 
             A[i*N+j] = A[i*N+j]/factor;
             I[i*N+j] = I[i*N+j]/factor;
         }
 
-        /* =========================================================
-            Make a column of 0 values in column i using the row "i"
-        ========================================================= */
-        for (int k = 0; i < N; i++) {
-            if (k == i) {
-            // Do nothing to row "i
-            } else {
-                double f = A[k*N+i];          // Multiply factor
 
-                /* -------------------------------------
-                    Add  -f*row(i) to row(k)
-                ------------------------------------- */
+        for (int k = 0; i < N; i++) {
+            if (k != i) {
+                double f = A[k*N+i];   
+				
                 for (int j = 0; j < N; j++) {
                     A[k*N+j] = A[k*N+j] - f*A[i*N+j];
                     I[k*N+j] = I[k*N+j] - f*I[i*N+j];
@@ -97,23 +84,27 @@ int main(int argc, char *argv[]) {
 	string outFile;
 	int n;
 
+	inFile = (char*) malloc (20);
+	outFile = (char*) malloc (21);
+
 	inFile = argv[1];
 	outFile = argv[2];
 	n = stoi(argv[3]);
 
-	double * A = new double[n];
-	double * I = new double[n];
+	double * A ;
+	double * I ;
+
+	A = (double*) malloc (n*n);
+	I = (double*) malloc (n*n);
 	
 	matrix_read(inFile, &A, &I, n);
 
-	// timer start
-	
-
+	auto start = high_resolution_clock::now();
 	inverse(A,I,n);
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<microseconds>(stop - start);
 
-	// timer stop
-	
-
+	saveTime(inFile, duration.count());
 	savetofile(outFile, &I, n);
 
     return 0;

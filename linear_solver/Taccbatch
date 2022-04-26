@@ -1,0 +1,25 @@
+
+#!/bin/bash
+#SBATCH -J matrix_lin_sys           # job name
+#SBATCH -o matrix_lin_sys%j       # output and error file name (%j expands to jobID)
+#SBATCH -N 1              # total number of nodes
+#SBATCH -n 4              # total number of cores
+#SBATCH -p gtx     # queue (partition) -- normal, development, etc.
+#SBATCH -t 24:00:00        # run time (hh:mm:ss) - 20 seconds
+#SBATCH -A ECE382V
+#SBATCH --mail-user=jeremiahgdavis98@gmail.com # replace by your email
+#SBATCH --mail-type=begin  # email me when the job starts
+#SBATCH --mail-type=end    # email me when the job finishes
+# run parallel determinant calculation
+./lin_sys.out tests/999x100mat.txt
+./lin_sys.out tests/mat_orthogonal_2000.txt
+./lin_sys.out tests/3kmat.txt
+./lin_sys.out tests/4kmat.txt
+./lin_sys.out tests/5kx5k.txt
+
+# run with sequential algorithm for comparison
+./lin_sys_seq.out tests/999x100mat.txt
+./lin_sys_seq.out tests/mat_orthogonal_2000.txt
+./lin_sys_seq.out tests/3kmat.txt
+./lin_sys_seq.out tests/4kmat.txt
+./lin_sys_seq.out tests/5kx5k.txt

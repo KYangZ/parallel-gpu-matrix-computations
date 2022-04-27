@@ -5,8 +5,7 @@
 #include <string>
 #include <time.h>
 
-void matrix_read(double **, double **, int);
-void inverse(double [], double [], int);
+using namespace std;
 
 void matrix_read(double **A, double **I, int n) {
 	int row, col;

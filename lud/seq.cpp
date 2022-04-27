@@ -87,9 +87,12 @@ void simple_verification_seq(int N){
     create_matrix_seq(l, N);
     create_matrix_seq(A, N);
     gen_matrix_seq(A, N);
+    printf("Input matrix: \n");
     print_matrix_seq(A, N);
     lud_sequential(l, A, N);
+    printf("Sequential lower triangular matrix: \n");
     print_matrix_seq(l, N);
+    printf("Sequential upper triangular matrix: \n");
     print_matrix_seq(A, N);
     delete_matrix_seq(A, N);
     delete_matrix_seq(l, N);
@@ -100,9 +103,12 @@ void simple_verification_seq(int N, float* flat){
     create_matrix_seq(l, N);
     create_matrix_seq(A, N);
     flat_to_grid(A, flat, N);
+    printf("Input matrix: \n");
     print_matrix_seq(A, N);
     lud_sequential(l, A, N);
+    printf("Sequential lower triangular matrix: \n");
     print_matrix_seq(l, N);
+    printf("Sequential upper triangular matrix: \n");
     print_matrix_seq(A, N);
     delete_matrix_seq(A, N);
     delete_matrix_seq(l, N);

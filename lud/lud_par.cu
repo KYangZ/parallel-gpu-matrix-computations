@@ -85,14 +85,16 @@ void lud_parallel(float* l, float* u, float* matrix, int N){
 }
 
 void simple_verification(int N, float* mat){
+    printf("Input matrix: \n");
     print_matrix(mat, N);
 
     float *l = new float[N*N];
     float *u = new float[N*N];
 
     lud_parallel(l, u, mat, N);
-
+    printf("Parallel lower triangular matrix: \n");
     print_matrix(l, N);
+    printf("Parallel upper triangular matrix: \n");
     print_matrix(u, N);
 
     free(l);
@@ -147,7 +149,8 @@ void compare_n_sizes(){
         float milliseconds = 0;
         cudaEventElapsedTime(&milliseconds, start, stop);
         printf("Sequential runtime for %dx%d dimensions: %f\n",N,N,milliseconds);
-  
+
+        delete_matrix_seq(l_seq, N);
         delete(mat);
 
 
@@ -165,8 +168,8 @@ int main(int argc, char** argv){
     simple_verification(N, mat);
     printf("Sequential implementation: \n");
     simple_verification_seq(N, mat_copy);
-    free(mat_copy);
-    free(mat);
+    // free(mat_copy);
+    // free(mat);
     // printf("Sweeping over multiple sizes...\n");
     // compare_n_sizes();
     return 0;

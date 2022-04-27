@@ -7,25 +7,34 @@
 
 using namespace std;
 
-void matrix_read(double **A, double **I, int n) {
-	int row, col;
+void matrix_read(char inFile[], double *A[], double *I[], int n) {
+	FILE *fp = fopen(inFile, "r");
+	if (fp == NULL)
+		return;
 
-	for (row = 0; row < n; row++) {
-		for (col = 0; col < n; col++) {	
-			if (row == col) I[row][col] = 1.00000;
-			else I[row][col] = 0.00000;
-			A[row][col] = rand() * 1.00000;
+	for (int row = 0; row < n; row++) {
+		A[row] = new double[n];
+
+		for (int col = 0; col < n; col++) {	
+			if (row == col) I[row][col] = 1;
+			else I[row][col] = 0;
+
+			if (fscanf(fp, "%f,", &A[row * n + col]) == EOF) break;
 		}
+
+		if (feof(fp)) break;
 	}
+
+	fclose(fp);
 }
 
-void inverse(double A[], double I[], int N) {
+void inverse(double *A, double *I, int N) {
 
      for (int i = 0; i < N; i++) {
          double factor = A[i*N + i]; 
 
          for (int j = 0; j < N; j++) { 
-            A[i*N+j] = A[i*N+j] / factor;
+            A[i*N+j] = A[i*N+j]/factor;
             I[i*N+j] = I[i*N+j]/factor;
         }
 
@@ -43,26 +52,23 @@ void inverse(double A[], double I[], int N) {
 }
 
 int main(int argc, char *argv[]) {
-	if(argc < 2) {
-		return 0;
-	}
+	int n = stoi(argv[3]);
 
-	int n = atoi(argv[1]);
-
-	double ** A = new double*[n];
-	double ** I = new double*[n];
-	printf("begin read");
-	matrix_read(A, I, n);
-	printf("end read");
+	double * A = (double*) malloc (n);
+	double * I = (double*) malloc (n);
+	matrix_read(argv[1], &A, &I, n);
 
 	clock_t start = clock();
 
-	inverse(*A,*I,n);
+	inverse(A,I,n);
 
 	clock_t finish = clock();
 	double time = (double)(finish - start);
 
-	printf("%lf",time);
+	cout << "time: " << time << "\n";
+
+	free(A);
+	free(I);
 
     return 0;
 }

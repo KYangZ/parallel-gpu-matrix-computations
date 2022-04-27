@@ -1,8 +1,3 @@
-rows: 999 cols: 1 
-execution time: 1904.824219 milliseconds
- 
- 
- 
- 
- 
+rows: 2000 cols: 1 
+execution time: 15165.464844 milliseconds
  

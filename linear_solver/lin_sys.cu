@@ -54,7 +54,8 @@ __global__ void cuda_backwards_elimination(double* M, int i, int M_rows, int M_c
     int j = threadIdx.x + blockIdx.x * blockDim.x;
     if (j < i && M[i * M_cols + i] != 0) {
         double r = M[j * M_cols + i] / M[i * M_cols + i];
-        cuda_row_subtract<<<(M_cols + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, THREADS_PER_BLOCK>>>(M, i, j, r, M_cols);
+        M[j * M_cols + M_cols - 1] -= r * M[i * M_cols + M_cols - 1];
+        M[j * M_cols + i] -= r * M[i * M_cols + i];
     }
 }
 
